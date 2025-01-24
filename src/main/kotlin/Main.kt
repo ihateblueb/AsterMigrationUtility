@@ -10,13 +10,5 @@ fun main() {
     val from = readlnOrNull().toString()
     if (from != "0") throw Error("Invalid input $from")
 
-    println("")
-    println("What is the host of your instance?")
-    println("e.g. example.com\n")
-
-    val host = readlnOrNull().toString()
-
-    if (from === "0") {
-        IceshrimpNET().start(host)
-    }
+    if (from == "0") IceshrimpNET().start()
 }
