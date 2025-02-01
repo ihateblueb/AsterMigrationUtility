@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AsterMigrationUtility.Utilities;
+using AsterMigrationUtility.Utilities.Reader;
 using IniParser;
 using IniParser.Model;
 using Npgsql;
@@ -144,6 +145,79 @@ public class IceshrimpNET
             }
         }
         
+        /* Users */
         
+        Console.WriteLine("\nStarting user migration...\n");
+
+        var userIds = new List<string>();
+        
+        Console.WriteLine("\nCompleted user migration.\n");
+        
+        /* Notes */
+        
+        Console.WriteLine("\nStarting note migration...\n");
+
+        var noteIds = new List<string>();
+        
+        var getNotes = isDataSource.CreateCommand("SELECT id FROM note;");
+        await using (var reader = await getNotes.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                noteIds.Add(reader.GetString(reader.GetOrdinal("id")));
+            }
+        }
+        
+        Logger.Debug("Collected all note IDs");
+
+        foreach (var id in noteIds)
+        {
+            Console.WriteLine($"Starting creation of {id}");
+            
+            var getNote = isDataSource.CreateCommand($"SELECT * FROM note WHERE id='{id}';");
+            await using (var reader = await getNote.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var note = new AsterNote();
+                    note.id = reader.GetString(reader.GetOrdinal("id"));
+                    // todo: nulled if local, needs a value in aster
+                    note.apId = /*reader.GetString(reader.GetOrdinal("uri"))*/ "e"; 
+                    
+                    note.userId = reader.GetString(reader.GetOrdinal("userId"));
+                    note.cw = GetValueOrNull.String(reader , "cw");
+                    note.content = GetValueOrNull.String(reader , "text");
+
+                    var originalVis = reader.GetString(reader.GetOrdinal("visibility"));
+                    if (originalVis == "public") note.visibility = "public";
+                    if (originalVis == "home") note.visibility = "unlisted";
+                    if (originalVis == "followers") note.visibility = "followers";
+                    if (originalVis == "specified") note.visibility = "direct";
+                    
+                    note.replyingToId = GetValueOrNull.String(reader , "replyId");
+                    // todo: pollId
+                    note.repeatId = GetValueOrNull.String(reader , "renoteId");
+                    // todo: mentionedRemoteUsers? huh?
+                    note.to = GetValueOrNull.StringArray(reader , "mentions");
+                        
+                    note.attachments = GetValueOrNull.StringArray(reader , "fileIds");
+                    // todo: check if this inserts shortcode or ids, aster requires ids
+                    note.emojis = GetValueOrNull.StringArray(reader , "emojis");
+                        
+                    // todo: wrong formats (Reading as 'System.String' is not supported for fields having DataTypeName 'timestamp with time zone')
+                    //note.createdAt = reader.GetString(reader.GetOrdinal("createdAt"));
+                    //note.updatedAt = GetValueOrNull.String(reader , "updatedAt");
+                    
+                    // todo: repeatIds, likeIds, reactionIds
+
+                    foreach (var property in note.GetType().GetProperties())
+                    {
+                        Logger.Debug($"{id} note.{property.Name}: {property.GetValue(note)?.ToString()}");
+                    }
+                }
+            }
+        }
+        
+        Console.WriteLine("\nCompleted note migration.\n");
     }
 }

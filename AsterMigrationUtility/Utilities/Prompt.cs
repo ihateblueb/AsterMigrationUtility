@@ -17,9 +17,9 @@ public class Prompt
             }
         }
         
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write(" > ");
         Console.ForegroundColor = ConsoleColor.DarkGreen;
+        Console.Write(" > ");
+        Console.ForegroundColor = ConsoleColor.Green;
         var response = Console.ReadLine() ?? string.Empty;
         Console.ResetColor();
 
